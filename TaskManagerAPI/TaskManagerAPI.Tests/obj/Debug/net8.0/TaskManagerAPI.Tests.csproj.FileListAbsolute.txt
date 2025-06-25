@@ -1,0 +1,4 @@
+C:\Users\abdul\Desktop\TaskManagerAPI\TaskManagerAPI\TaskManagerAPI\TaskManagerAPI.Tests\bin\Debug\net8.0\CoverletSourceRootsMapping_TaskManagerAPI.Tests
+C:\Users\abdul\Desktop\TaskManagerAPI\TaskManagerAPI\TaskManagerAPI\TaskManagerAPI.Tests\obj\Debug\net8.0\TaskManagerAPI.Tests.csproj.AssemblyReference.cache
+C:\Users\abdul\Desktop\TaskManagerAPI\TaskManagerAPI\TaskManagerAPI\TaskManagerAPI.Tests\obj\Debug\net8.0\TaskManagerAPI.Tests.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\abdul\Desktop\TaskManagerAPI\TaskManagerAPI\TaskManagerAPI\TaskManagerAPI.Tests\obj\Debug\net8.0\TaskManagerAPI.Tests.csproj.CoreCompileInputs.cache

@@ -1,0 +1,87 @@
+@page "/projects"
+@using MudBlazor
+@inject ApiService ApiService
+@inject NavigationManager Navigation
+
+@if (!ApiService.IsAuthenticated)
+{
+    Navigation.NavigateTo("/login", true);
+}
+else
+{
+    <MudPaper Class="pa-6 mx-auto mt-8" MaxWidth="800px">
+        <MudText Typo="Typo.h5" Class="mb-4">Your Projects</MudText>
+        @if (projects.Count == 0)
+        {
+            <MudText Typo="Typo.body1" Color="Color.Secondary">No projects found. Create your first project below!</MudText>
+        }
+        <MudTable Items="projects" Hover="true">
+            <HeaderContent>
+                <MudTh>Name</MudTh>
+                <MudTh>Description</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Name</MudTd>
+                <MudTd>@context.Description</MudTd>
+                <MudTd>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="() => GoToProject(context.Id)">Open</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" OnClick="() => DeleteProject(context.Id)" Class="ml-2">Delete</MudButton>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+        <MudDivider Class="my-4" />
+        <MudTextField @bind-Value="newProjectName" Label="Project Name" Variant="Variant.Outlined" />
+        <MudTextField @bind-Value="newProjectDesc" Label="Description" Variant="Variant.Outlined" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateProject" Class="mt-2">Create Project</MudButton>
+        <MudSnackbarProvider />
+    </MudPaper>
+}
+
+@code {
+    List<ApiService.ProjectDto> projects = new();
+    string newProjectName = string.Empty;
+    string newProjectDesc = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (ApiService.IsAuthenticated)
+            projects = await ApiService.GetProjectsAsync();
+    }
+
+    async Task CreateProject()
+    {
+        var created = await ApiService.CreateProjectAsync(newProjectName, newProjectDesc);
+        if (created != null)
+        {
+            projects.Add(created);
+            newProjectName = string.Empty;
+            newProjectDesc = string.Empty;
+            Snackbar.Add("Project created!", Severity.Success);
+            StateHasChanged();
+        }
+        else
+        {
+            Snackbar.Add("Failed to create project.", Severity.Error);
+        }
+    }
+
+    void GoToProject(int id) => Navigation.NavigateTo($"/projects/{id}");
+
+    async Task DeleteProject(int id)
+    {
+        var success = await ApiService.DeleteProjectAsync(id);
+        if (success)
+        {
+            projects = projects.Where(p => p.Id != id).ToList();
+            Snackbar.Add("Project deleted.", Severity.Success);
+            StateHasChanged();
+        }
+        else
+        {
+            Snackbar.Add("Failed to delete project.", Severity.Error);
+        }
+    }
+
+    [CascadingParameter] public ISnackbar Snackbar { get; set; }
+} 

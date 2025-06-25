@@ -1,0 +1,41 @@
+@page "/register"
+@using MudBlazor
+@inject NavigationManager Navigation
+@inject ApiService ApiService
+
+@if (ApiService.IsAuthenticated)
+{
+    Navigation.NavigateTo("/projects", true);
+}
+else
+{
+    <MudPaper Class="pa-6 mx-auto mt-12" MaxWidth="400px">
+        <MudText Typo="Typo.h5" Class="mb-4">Register</MudText>
+        <MudTextField @bind-Value="Username" Label="Username" Variant="Variant.Outlined" Required="true" />
+        <MudTextField @bind-Value="Password" Label="Password" Variant="Variant.Outlined" InputType="InputType.Password" Required="true" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="RegisterUser" Class="mt-4" FullWidth>Register</MudButton>
+        <MudText Class="mt-2">Already have an account? <MudLink Href="/login">Login</MudLink></MudText>
+        <MudSnackbarProvider />
+    </MudPaper>
+}
+
+@code {
+    string Username = string.Empty;
+    string Password = string.Empty;
+
+    async Task RegisterUser()
+    {
+        var success = await ApiService.RegisterAsync(Username, Password);
+        if (success)
+        {
+            Snackbar.Add("Registration successful! Please log in.", Severity.Success);
+            Navigation.NavigateTo("/login", true);
+        }
+        else
+        {
+            Snackbar.Add("Registration failed. Username may already exist.", Severity.Error);
+        }
+    }
+
+    [CascadingParameter] public ISnackbar Snackbar { get; set; }
+} 

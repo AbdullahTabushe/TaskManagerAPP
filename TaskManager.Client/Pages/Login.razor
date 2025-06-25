@@ -1,0 +1,55 @@
+@page "/login"
+@using MudBlazor
+@inject NavigationManager Navigation
+@inject ApiService ApiService
+
+<MudPaper Class="pa-6 mx-auto mt-12" MaxWidth="400px">
+    <MudText Typo="Typo.h5" Class="mb-4">Login</MudText>
+    <MudTextField @bind-Value="Username" Label="Username" Variant="Variant.Outlined" Required="true" />
+    <MudTextField @bind-Value="Password" Label="Password" Variant="Variant.Outlined" InputType="InputType.Password" Required="true" />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoginUser" Class="mt-4" FullWidth Disabled="@isLoading">
+        @if (isLoading)
+        {
+            <MudProgressCircular Indeterminate="true" Size="Size.Small" Class="mr-2" />
+            Logging in...
+        }
+        else
+        {
+            Login
+        }
+    </MudButton>
+    <MudText Class="mt-2">Don't have an account? <MudLink Href="/register">Register</MudLink></MudText>
+    <MudSnackbarProvider />
+</MudPaper>
+
+@code {
+    string Username = string.Empty;
+    string Password = string.Empty;
+    bool isLoading = false;
+
+    protected override void OnInitialized()
+    {
+        if (ApiService.IsAuthenticated)
+        {
+            Navigation.NavigateTo("/projects");
+        }
+    }
+
+    async Task LoginUser()
+    {
+        isLoading = true;
+        StateHasChanged();
+        var success = await ApiService.LoginAsync(Username, Password);
+        isLoading = false;
+        if (success)
+        {
+            Navigation.NavigateTo("/projects", true);
+        }
+        else
+        {
+            Snackbar.Add("Login failed. Please check your credentials.", Severity.Error);
+        }
+    }
+
+    [CascadingParameter] public ISnackbar Snackbar { get; set; }
+} 

@@ -1,0 +1,23 @@
+﻿@page "/counter"
+@using MudBlazor
+
+<MudPaper Class="pa-6 mx-auto mt-8" MaxWidth="400px">
+    <MudText Typo="Typo.h5" Class="mb-4">Counter</MudText>
+    <MudText Typo="Typo.body1" role="status">Current count: <b>@currentCount</b></MudText>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="IncrementCount" Class="mt-4">Click me</MudButton>
+    <MudSnackbarProvider />
+</MudPaper>
+
+@code {
+    private int currentCount = 0;
+    [CascadingParameter] public ISnackbar Snackbar { get; set; }
+
+    private void IncrementCount()
+    {
+        currentCount++;
+        if (currentCount == 10)
+        {
+            Snackbar.Add("You reached 10!", Severity.Success);
+        }
+    }
+}

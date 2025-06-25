@@ -1,0 +1,73 @@
+﻿<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">TaskManager.Client</a>
+        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </div>
+</div>
+
+<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
+    <nav class="flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="counter">
+                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="weather">
+                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
+            </NavLink>
+        </div>
+        <div class="nav-item px-3" hidden="@ApiService.IsAuthenticated">
+            <NavLink class="nav-link" href="/login">
+                <span class="bi bi-login-nav-menu" aria-hidden="true"></span> Login
+            </NavLink>
+        </div>
+        <div class="nav-item px-3" hidden="@ApiService.IsAuthenticated">
+            <NavLink class="nav-link" href="/register">
+                <span class="bi bi-person-add-nav-menu" aria-hidden="true"></span> Register
+            </NavLink>
+        </div>
+        <div class="nav-item px-3" hidden="@(!ApiService.IsAuthenticated)">
+            <NavLink class="nav-link" href="/projects">
+                <span class="bi bi-dashboard-nav-menu" aria-hidden="true"></span> Projects
+            </NavLink>
+        </div>
+        <div class="nav-item px-3" hidden="@(!ApiService.IsAdmin)">
+            <NavLink class="nav-link" href="/admin/users">
+                <span class="bi bi-people-nav-menu" aria-hidden="true"></span> User Management
+            </NavLink>
+        </div>
+        <div class="nav-item px-3" hidden="@(!ApiService.IsAuthenticated)">
+            <span class="nav-link disabled">@ApiService.Username (@ApiService.Role)</span>
+        </div>
+        <div class="nav-item px-3" hidden="@(!ApiService.IsAuthenticated)">
+            <button class="btn btn-link nav-link" @onclick="Logout">Logout</button>
+        </div>
+    </nav>
+</div>
+
+@code {
+    private bool collapseNavMenu = true;
+
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+
+    [Inject] public ApiService ApiService { get; set; }
+    [Inject] public NavigationManager Navigation { get; set; }
+    private void Logout()
+    {
+        ApiService.Logout();
+        Navigation.NavigateTo("/login");
+    }
+}

@@ -18,5 +18,7 @@ namespace TaskManagerAPI.DTOs
 
         [Required]
         public int ProjectId { get; set; }
+
+        public int? AssignedUserId { get; set; }
     }
 }

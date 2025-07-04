@@ -13,19 +13,24 @@ else
         <MudText Typo="Typo.h5" Class="mb-4">Register</MudText>
         <MudTextField @bind-Value="Username" Label="Username" Variant="Variant.Outlined" Required="true" />
         <MudTextField @bind-Value="Password" Label="Password" Variant="Variant.Outlined" InputType="InputType.Password" Required="true" />
+        
         <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="RegisterUser" Class="mt-4" FullWidth>Register</MudButton>
         <MudText Class="mt-2">Already have an account? <MudLink Href="/login">Login</MudLink></MudText>
         <MudSnackbarProvider />
+
+
     </MudPaper>
+
 }
 
 @code {
     string Username = string.Empty;
     string Password = string.Empty;
+    string Role = "User";
 
     async Task RegisterUser()
     {
-        var success = await ApiService.RegisterAsync(Username, Password);
+        var success = await ApiService.RegisterAsync(Username, Password, Role);
         if (success)
         {
             Snackbar.Add("Registration successful! Please log in.", Severity.Success);
@@ -38,4 +43,4 @@ else
     }
 
     [CascadingParameter] public ISnackbar Snackbar { get; set; }
-} 
+}

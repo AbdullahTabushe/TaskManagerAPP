@@ -42,5 +42,20 @@ namespace TaskManagerAPI.Controllers
 
             return Ok(authResponse);
         }
+
+        [HttpDelete("{userId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeleteUser(string userId)
+        {
+            var result = await _authService.DeleteUserAsync(userId);
+
+            return result switch
+            {
+                DeleteResult.Success => NoContent(),
+                DeleteResult.NotFound => NotFound("User not found."),
+                DeleteResult.HasProjects => BadRequest("User cannot be deleted because they have associated projects."),
+                _ => StatusCode(500, "An unexpected error occurred.")
+            };
+        }
     }
 }

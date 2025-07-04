@@ -9,12 +9,18 @@
     @if (ApiService.IsAuthenticated)
     {
         <MudText Typo="Typo.body1" Class="mb-4">Hello, <b>@ApiService.Username</b>! Ready to get productive?</MudText>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => Navigation.NavigateTo('/projects')">Go to My Projects</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => Navigation.NavigateTo("/projects"))">
+            Go to My Projects
+        </MudButton>
     }
     else
     {
         <MudText Typo="Typo.body1" Class="mb-4">Sign in or create an account to start managing your projects and tasks.</MudText>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="() => Navigation.NavigateTo('/login')" Class="mr-2">Login</MudButton>
-        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="() => Navigation.NavigateTo('/register')">Register</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => Navigation.NavigateTo("/login"))" Class="mr-2">
+            Login
+        </MudButton>
+        <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="@(() => Navigation.NavigateTo("/register"))">
+            Register
+        </MudButton>
     }
 </MudPaper>

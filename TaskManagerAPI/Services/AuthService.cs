@@ -10,6 +10,8 @@ using BCrypt.Net;
 
 namespace TaskManagerAPI.Services
 {
+    public enum DeleteResult { Success, NotFound, HasProjects }
+
     public class AuthService : IAuthService
     {
         private readonly AppDbContext _context;
@@ -33,7 +35,7 @@ namespace TaskManagerAPI.Services
             {
                 Username = userCreateDto.Username,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(userCreateDto.Password),
-                Role = "User"
+                Role = userCreateDto.Role
             };
 
             _context.Users.Add(user);
@@ -61,6 +63,25 @@ namespace TaskManagerAPI.Services
             };
         }
 
+        public async Task<DeleteResult> DeleteUserAsync(string userId)
+        {
+            var user = await _context.Users.FindAsync(int.Parse(userId));
+            if (user == null)
+            {
+                return DeleteResult.NotFound;
+            }
+
+            var hasProjects = await _context.Projects.AnyAsync(p => p.UserId == user.Id);
+            if (hasProjects)
+            {
+                return DeleteResult.HasProjects;
+            }
+
+            _context.Users.Remove(user);
+            await _context.SaveChangesAsync();
+            return DeleteResult.Success;
+        }
+
         private string GenerateJwtToken(User user)
         {
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
@@ -68,8 +89,8 @@ namespace TaskManagerAPI.Services
 
             var claims = new[]
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Name, user.Username),
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Name, user.Username),
                 new Claim(ClaimTypes.Role, user.Role)
             };
 

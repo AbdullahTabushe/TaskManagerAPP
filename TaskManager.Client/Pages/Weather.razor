@@ -5,9 +5,10 @@
 <MudPaper Class="pa-6 mx-auto mt-8" MaxWidth="600px">
     <MudText Typo="Typo.h5" Class="mb-4">Weather</MudText>
     <MudText Typo="Typo.body1" Class="mb-4">This component demonstrates fetching data from the server.</MudText>
+
     @if (isLoading)
     {
-        <MudProgressCircular Indeterminate Size="40" Class="my-4" />
+        <MudProgressCircular Indeterminate="true" Style="width:40px;height:40px" Class="my-4" />
         <MudText Typo="Typo.body2">Loading...</MudText>
     }
     else if (errorMsg != null)

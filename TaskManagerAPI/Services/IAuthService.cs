@@ -6,5 +6,6 @@ namespace TaskManagerAPI.Services
     {
         Task<AuthResponseDto?> LoginAsync(UserLoginDto loginDto);
         Task<AuthResponseDto?> RegisterAsync(UserCreateDto userCreateDto);
+        Task<DeleteResult> DeleteUserAsync(string userId);
     }
 }

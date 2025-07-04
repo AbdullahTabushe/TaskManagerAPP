@@ -1,0 +1,137 @@
+@page "/my-tasks"
+@using TaskManager.Frontend.Models
+@using TaskManager.Frontend.Services
+@using TaskManager.Frontend.Shared
+@inject IApiService ApiService
+@inject IAuthService AuthService
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+
+<PageTitle>My Tasks - Task Manager</PageTitle>
+
+@if (!isAuthenticated)
+{
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle"></i>
+        Please log in to view your assigned tasks.
+    </div>
+}
+else
+{
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2><i class="fas fa-tasks text-primary"></i> My Tasks</h2>
+                <p class="text-muted">Tasks assigned to you across all projects</p>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-info fs-6">
+                    <i class="fas fa-user"></i> @username
+                </span>
+            </div>
+        </div>
+
+        <!-- Filters and Controls -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control" placeholder="Search tasks..."
+                           @bind="searchQuery" @onkeypress="@(async (e) => { if (e.Key == "Enter") await LoadTasks(); })" />
+                    <button class="btn btn-outline-secondary" type="button" @onclick="LoadTasks">Search</button>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" @bind="StatusFilter" @bind:event="onchange">
+                    <option value="">All Statuses</option>
+                    <option value="Pending">Pending</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select class="form-select" @bind="SortBy" @bind:event="onchange">
+                    <option value="DueDate">Due Date</option>
+                    <option value="Title">Title</option>
+                </select>
+            </div>
+        </div>
+
+        <TaskList Tasks="tasks"
+                  ShowProjectName="true"
+                  AllowStatusChanges="true"
+                  EmptyMessage="@emptyMessage"
+                  OnTaskUpdated="HandleTaskUpdate" />
+    </div>
+}
+
+@code {
+    private List<TaskReadDto>? tasks;
+    private bool isLoading = true;
+    private string searchQuery = "";
+    private bool isDescending = false;
+    private bool isAuthenticated = false;
+    private string? username = "";
+    private string emptyMessage = "Loading tasks...";
+
+    public string StatusFilter
+    {
+        get => statusFilter;
+        set
+        {
+            statusFilter = value;
+            _ = LoadTasks();
+        }
+    }
+    private string statusFilter = "";
+
+    public string SortBy
+    {
+        get => sortBy;
+        set
+        {
+            sortBy = value;
+            _ = LoadTasks();
+        }
+    }
+    private string sortBy = "DueDate";
+
+    protected override async Task OnInitializedAsync()
+    {
+        isAuthenticated = await AuthService.IsAuthenticatedAsync();
+        username = await AuthService.GetUsernameAsync();
+
+        if (isAuthenticated)
+        {
+            await LoadTasks();
+        }
+    }
+
+    private async Task LoadTasks()
+    {
+        tasks = null;
+        StateHasChanged();
+
+        var queryParams = new QueryParameters
+            {
+                FilterBy = !string.IsNullOrEmpty(searchQuery) ? "Title" : null,
+                FilterQuery = searchQuery,
+                Status = statusFilter,
+                SortBy = sortBy,
+                PageSize = 100
+            };
+        tasks = await ApiService.GetMyTasksAsync(queryParams) ?? new List<TaskReadDto>();
+
+        if (!tasks.Any())
+        {
+            emptyMessage = "You have no assigned tasks matching the current filters.";
+        }
+        StateHasChanged();
+    }
+
+    private async Task HandleTaskUpdate(TaskReadDto updatedTask)
+    {
+        await LoadTasks();
+        StateHasChanged();
+    }
+}

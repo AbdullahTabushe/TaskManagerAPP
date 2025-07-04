@@ -41,6 +41,26 @@ namespace TaskManagerAPI.Controllers
             return Ok(tasks);
         }
 
+        [HttpGet("assigned")]
+        public async Task<IActionResult> GetAssignedTasks([FromQuery] QueryParameters queryParameters)
+        {
+            var userId = GetUserId();
+            Console.WriteLine($"DEBUG: GetAssignedTasks called for userId: {userId}");
+            
+            var tasks = await _taskService.GetTasksAssignedToUserAsync(userId, queryParameters);
+            Console.WriteLine($"DEBUG: Found {tasks.Count()} tasks for user {userId}");
+            
+            return Ok(tasks);
+        }
+
+        [HttpGet("assigned/{userId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetTasksAssignedToUser(int userId, [FromQuery] QueryParameters queryParameters)
+        {
+            var tasks = await _taskService.GetTasksAssignedToUserAsync(userId, queryParameters);
+            return Ok(tasks);
+        }
+
         [HttpGet("{id}")]
         public async Task<IActionResult> GetTaskById(int id)
         {
@@ -72,6 +92,28 @@ namespace TaskManagerAPI.Controllers
                 return NotFound();
             }
             return NoContent();
+        }
+
+        [HttpGet("debug/all-tasks")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetAllTasksDebug()
+        {
+            var tasks = await _taskService.GetAllTasksForDebugAsync();
+            return Ok(tasks);
+        }
+
+        [HttpGet("debug/user-info")]
+        public async Task<IActionResult> GetCurrentUserInfo()
+        {
+            var userId = GetUserId();
+            var username = User.FindFirstValue(ClaimTypes.Name);
+            var role = User.FindFirstValue(ClaimTypes.Role);
+            
+            return Ok(new { 
+                UserId = userId, 
+                Username = username, 
+                Role = role 
+            });
         }
     }
 }

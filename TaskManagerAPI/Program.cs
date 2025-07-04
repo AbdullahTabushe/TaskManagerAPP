@@ -16,13 +16,17 @@ builder.Host.UseSerilog((context, configuration) =>
 builder.Services.AddControllers();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
+    options.UseMySql(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
+    )
 );
 
 builder.Services.AddScoped<ITaskService, TaskService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IActivityLogService, ActivityLogService>();
 
 builder.Services.AddMemoryCache();
 
@@ -68,7 +72,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy(name: allowedOrigins,
         policy =>
         {
-            policy.WithOrigins("https://localhost:5002", "http://localhost:5002")
+            policy.WithOrigins("https://localhost:7266", "http://localhost:5183")
                   .AllowAnyHeader()
                   .AllowAnyMethod();
         });

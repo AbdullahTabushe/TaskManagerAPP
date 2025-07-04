@@ -1,0 +1,173 @@
+@using TaskManager.Frontend.Models
+@using TaskManager.Frontend.Services
+@inject IApiService ApiService
+@inject IJSRuntime JSRuntime
+
+@if (Tasks == null)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (!Tasks.Any())
+{
+    <div class="alert alert-secondary text-center">
+        <i class="fas fa-info-circle me-2"></i>
+        @EmptyMessage
+    </div>
+}
+else
+{
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Task</th>
+                        @if (ShowProjectName)
+                        {
+                            <th>Project</th>
+                        }
+                        <th>Status</th>
+                        <th>Due Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var task in Tasks)
+                    {
+                        <tr>
+                            <td>
+                                <div>
+                                    <strong>@task.Title</strong>
+                                    @if (!string.IsNullOrEmpty(task.Description))
+                                    {
+                                        <br />
+                                        <small class="text-muted">@task.Description</small>
+                                    }
+                                </div>
+                            </td>
+                            @if (ShowProjectName)
+                            {
+                                <td>
+                                    <span class="badge bg-light text-dark">
+                                        <i class="fas fa-project-diagram"></i> @task.ProjectName
+                                    </span>
+                                </td>
+                            }
+                            <td>
+                                @switch (task.Status)
+                                {
+                                    case "Completed":
+                                        <span class="badge bg-success"><i class="fas fa-check"></i> @task.Status</span>
+                                        break;
+                                    case "In Progress":
+                                        <span class="badge bg-info"><i class="fas fa-spinner"></i> @task.Status</span>
+                                        break;
+                                    default:
+                                        <span class="badge bg-warning"><i class="fas fa-clock"></i> @task.Status</span>
+                                        break;
+                                }
+                            </td>
+                            <td>
+                                @if (task.DueDate.HasValue)
+                                {
+                                    <div class="text-nowrap">
+                                        @task.DueDate.Value.ToString("MMM dd, yyyy")
+                                        @if (task.Status != "Completed")
+                                        {
+                                            @if (task.DueDate.Value.Date < DateTime.Now.Date)
+                                            {
+                                                <br />
+                                                <span class="badge bg-danger">
+                                                    <i class="fas fa-exclamation-triangle"></i> Overdue
+                                                </span>
+                                            }
+                                            else if (task.DueDate.Value.Date == DateTime.Now.Date)
+                                            {
+                                                <br />
+                                                <span class="badge bg-warning text-dark">
+                                                    <i class="fas fa-clock"></i> Due today
+                                                </span>
+                                            }
+                                        }
+                                    </div>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">No due date</span>
+                                }
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    @if (AllowStatusChanges)
+                                    {
+                                        if (task.Status != "Pending")
+                                        {
+                                            <button class="btn btn-sm btn-outline-secondary" @onclick="@(() => UpdateStatus(task, "Pending"))">Pending</button>
+                                        }
+                                        if (task.Status != "In Progress")
+                                        {
+                                            <button class="btn btn-sm btn-outline-primary" @onclick="@(() => UpdateStatus(task, "In Progress"))">In Progress</button>
+                                        }
+                                        if (task.Status != "Completed")
+                                        {
+                                            <button class="btn btn-sm btn-outline-success" @onclick="@(() => UpdateStatus(task, "Completed"))">Completed</button>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <button class="btn btn-sm btn-outline-secondary" disabled>No actions</button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public List<TaskReadDto>? Tasks { get; set; }
+
+    [Parameter]
+    public bool ShowProjectName { get; set; } = false;
+
+    [Parameter]
+    public bool AllowStatusChanges { get; set; } = false;
+    
+    [Parameter]
+    public string EmptyMessage { get; set; } = "No tasks found.";
+
+    [Parameter]
+    public EventCallback<TaskReadDto> OnTaskUpdated { get; set; }
+
+    private async Task UpdateStatus(TaskReadDto task, string newStatus)
+    {
+        var updateDto = new TaskUpdateDto
+        {
+            Title = task.Title,
+            Description = task.Description,
+            Status = newStatus,
+            DueDate = task.DueDate,
+            AssignedUserId = task.AssignedUserId
+        };
+
+        var success = await ApiService.UpdateTaskAsync(task.Id, updateDto);
+        if (success)
+        {
+            task.Status = newStatus;
+            await OnTaskUpdated.InvokeAsync(task);
+            StateHasChanged();
+        }
+        else
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Failed to update task status.");
+        }
+    }
+} 

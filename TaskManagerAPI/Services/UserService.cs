@@ -2,6 +2,7 @@
 using TaskManagerAPI.Data;
 using TaskManagerAPI.DTOs;
 using TaskManagerAPI.Models;
+using BCrypt.Net;
 
 namespace TaskManagerAPI.Services
 {
@@ -19,10 +20,8 @@ namespace TaskManagerAPI.Services
             var user = new User
             {
                 Username = userDto.Username,
-                PasswordHash = userDto.Password,
-               // user.PasswordHash = HashPassword(userDto.Password);
-
-            Role = userDto.Role
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(userDto.Password),
+                Role = userDto.Role
             };
 
             _context.Users.Add(user);
@@ -36,7 +35,7 @@ namespace TaskManagerAPI.Services
             };
         }
 
-        public async Task<IEnumerable<UserReadDto>> GetAllUsersAsync()
+        public async Task<IEnumerable<UserReadDto>> GetAllUsersAsync()  
         {
             return await _context.Users
                 .Select(u => new UserReadDto

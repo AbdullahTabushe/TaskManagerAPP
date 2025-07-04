@@ -1,0 +1,113 @@
+@page "/register"
+@using TaskManager.Frontend.Models
+@using TaskManager.Frontend.Services
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Register</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="text-center">Register</h3>
+                </div>
+                <div class="card-body">
+                    <EditForm Model="@registerModel" OnValidSubmit="@HandleRegister">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="text-danger" />
+
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger">@errorMessage</div>
+                        }
+
+                        @if (!string.IsNullOrEmpty(successMessage))
+                        {
+                            <div class="alert alert-success">@successMessage</div>
+                        }
+
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <InputText @bind-Value="registerModel.Username" class="form-control" id="username" />
+                            <ValidationMessage For="@(() => registerModel.Username)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <InputText @bind-Value="registerModel.Password" type="password" class="form-control" id="password" />
+                            <ValidationMessage For="@(() => registerModel.Password)" />
+                            <div class="form-text">Password must be at least 8 characters long.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="role" class="form-label">Role</label>
+                            <InputSelect @bind-Value="registerModel.Role" class="form-select" id="role">
+                                <option value="">Select a role...</option>
+                                <option value="User">User</option>
+                                <option value="Admin">Admin</option>
+                            </InputSelect>
+                            <ValidationMessage For="@(() => registerModel.Role)" />
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                    <text> Registering...</text>
+                                }
+                                else
+                                {
+                                    <text>Register</text>
+                                }
+                            </button>
+                        </div>
+
+                        <div class="text-center mt-3">
+                            <p>Already have an account? <a href="/login">Login here</a></p>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private UserCreateDto registerModel = new();
+    private string errorMessage = "";
+    private string successMessage = "";
+    private bool isLoading = false;
+
+    private async Task HandleRegister()
+    {
+        isLoading = true;
+        errorMessage = "";
+        successMessage = "";
+
+        try
+        {
+            var result = await AuthService.RegisterAsync(registerModel);
+            if (result != null)
+            {
+                successMessage = "Registration successful! Redirecting to dashboard...";
+                await Task.Delay(2000); // Brief delay to show success message
+                Navigation.NavigateTo("/dashboard");
+            }
+            else
+            {
+                errorMessage = "Registration failed. Username may already exist, or check the browser console for more details.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred during registration: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+} 

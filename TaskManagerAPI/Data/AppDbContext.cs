@@ -11,6 +11,7 @@ namespace TaskManagerAPI.Data
         public DbSet<User> Users => Set<User>();
         public DbSet<TaskItem> Tasks => Set<TaskItem>();
         public DbSet<Project> Projects => Set<Project>();
+        public DbSet<ActivityLog> ActivityLogs => Set<ActivityLog>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -20,7 +21,7 @@ namespace TaskManagerAPI.Data
                 .HasOne(p => p.User)
                 .WithMany(u => u.Projects)
                 .HasForeignKey(p => p.UserId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<TaskItem>()
                 .HasOne(t => t.Project)
@@ -33,6 +34,12 @@ namespace TaskManagerAPI.Data
                 .WithMany(u => u.Tasks)
                 .HasForeignKey(t => t.UserId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            modelBuilder.Entity<ActivityLog>()
+                .HasOne(al => al.User)
+                .WithMany()
+                .HasForeignKey(al => al.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

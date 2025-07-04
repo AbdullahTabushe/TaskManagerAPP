@@ -1,0 +1,451 @@
+@page "/admin"
+@using TaskManager.Frontend.Models
+@using TaskManager.Frontend.Services
+@inject IAuthService AuthService
+@inject IApiService ApiService
+@inject NavigationManager Navigation
+
+<PageTitle>Admin Dashboard</PageTitle>
+
+@if (!isLoading && !isAuthorized)
+{
+    <div class="container mt-5">
+        <div class="alert alert-danger text-center">
+            <h4>Access Denied</h4>
+            <p>You don't have permission to access this page. Admin role required.</p>
+            <a href="/dashboard" class="btn btn-primary">Return to Dashboard</a>
+        </div>
+    </div>
+}
+else if (isAuthorized)
+{
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2><i class="bi bi-shield-fill text-primary"></i> Admin Dashboard</h2>
+                <p class="text-muted">Manage users and system administration</p>
+            </div>
+            <div>
+                <button class="btn btn-success" @onclick="ShowCreateUserModal">
+                    <i class="bi bi-person-plus-fill"></i> Create New User
+                </button>
+                <a href="/dashboard" class="btn btn-outline-secondary ms-2">
+                    <i class="bi bi-arrow-left"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <h4>@users.Count</h4>
+                        <p class="mb-0">Total Users</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <h4>@users.Count(u => u.Role == "Admin")</h4>
+                        <p class="mb-0">Admin Users</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-info text-white">
+                    <div class="card-body">
+                        <h4>@users.Count(u => u.Role == "User")</h4>
+                        <p class="mb-0">Regular Users</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if (isLoadingUsers)
+        {
+            <div class="text-center">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Loading users...</p>
+            </div>
+        }
+        else if (users.Any())
+        {
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">User Management</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Username</th>
+                                    <th>Role</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var user in users)
+                                {
+                                    <tr>
+                                        <td>@user.Id</td>
+                                        <td><strong>@user.Username</strong></td>
+                                        <td>
+                                            <span class="badge @GetRoleBadgeClass(user.Role)">
+                                                @user.Role
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-outline-info" @onclick="() => ViewUser(user)">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDeleteUser(user)">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="text-center mt-5">
+                <h4>No users found</h4>
+                <p class="text-muted">There are no users in the system yet.</p>
+            </div>
+        }
+
+        <!-- Create User Modal -->
+        @if (showCreateUserModal)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Create New User</h5>
+                            <button type="button" class="btn-close" @onclick="CloseCreateUserModal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <EditForm Model="@newUserModel" OnValidSubmit="@HandleCreateUser">
+                                <DataAnnotationsValidator />
+                                <ValidationSummary class="text-danger" />
+
+                                @if (!string.IsNullOrEmpty(createUserError))
+                                {
+                                    <div class="alert alert-danger">@createUserError</div>
+                                }
+
+                                <div class="mb-3">
+                                    <label for="newUsername" class="form-label">Username</label>
+                                    <InputText @bind-Value="newUserModel.Username" class="form-control" id="newUsername" />
+                                    <ValidationMessage For="@(() => newUserModel.Username)" />
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="newPassword" class="form-label">Password</label>
+                                    <InputText @bind-Value="newUserModel.Password" type="password" class="form-control" id="newPassword" />
+                                    <ValidationMessage For="@(() => newUserModel.Password)" />
+                                    <div class="form-text">Password must be at least 8 characters long.</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="newRole" class="form-label">Role</label>
+                                    <InputSelect @bind-Value="newUserModel.Role" class="form-select" id="newRole">
+                                        <option value="">Select a role...</option>
+                                        <option value="User">User</option>
+                                        <option value="Admin">Admin</option>
+                                    </InputSelect>
+                                    <ValidationMessage For="@(() => newUserModel.Role)" />
+                                </div>
+
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" @onclick="CloseCreateUserModal">Cancel</button>
+                                    <button type="submit" class="btn btn-success" disabled="@isCreatingUser">
+                                        @if (isCreatingUser)
+                                        {
+                                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                            <text> Creating...</text>
+                                        }
+                                        else
+                                        {
+                                            <text>Create User</text>
+                                        }
+                                    </button>
+                                </div>
+                            </EditForm>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- User Details Modal -->
+        @if (showUserDetailsModal && selectedUser != null)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">User Details</h5>
+                            <button type="button" class="btn-close" @onclick="CloseUserDetailsModal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-4"><strong>User ID:</strong></div>
+                                <div class="col-md-8">@selectedUser.Id</div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-md-4"><strong>Username:</strong></div>
+                                <div class="col-md-8">@selectedUser.Username</div>
+                            </div>
+                            <div class="row mt-2">
+                                <div class="col-md-4"><strong>Role:</strong></div>
+                                <div class="col-md-8">
+                                    <span class="badge @GetRoleBadgeClass(selectedUser.Role)">
+                                        @selectedUser.Role
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseUserDetailsModal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        <!-- Delete Confirmation Modal -->
+        @if (showDeleteConfirmModal && userToDelete != null)
+        {
+            <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title text-danger">Confirm Delete</h5>
+                            <button type="button" class="btn-close" @onclick="CloseDeleteConfirmModal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Are you sure you want to delete the user <strong>@userToDelete.Username</strong>?</p>
+                            
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" @onclick="CloseDeleteConfirmModal">Cancel</button>
+                            <button type="button" class="btn btn-danger" @onclick="DeleteUser" disabled="@isDeletingUser">
+                                @if (isDeletingUser)
+                                {
+                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                    <text> Deleting...</text>
+                                }
+                                else
+                                {
+                                    <text>Delete User</text>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private bool isLoading = true;
+    private bool isAuthorized = false;
+    private bool isLoadingUsers = true;
+    private List<UserReadDto> users = new();
+    
+    // Modal states
+    private bool showCreateUserModal = false;
+    private bool showUserDetailsModal = false;
+    private bool showDeleteConfirmModal = false;
+    
+    // Form states
+    private bool isCreatingUser = false;
+    private bool isDeletingUser = false;
+    private string createUserError = "";
+    
+    // Models
+    private UserCreateDto newUserModel = new();
+    private UserReadDto? selectedUser = null;
+    private UserReadDto? userToDelete = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CheckAuthorizationAndLoadData();
+    }
+
+    private async Task CheckAuthorizationAndLoadData()
+    {
+        isLoading = true;
+        
+        // Check if user is logged in and has Admin role
+        var isAuthenticated = await AuthService.IsLoggedInAsync();
+        if (!isAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        var userRole = await AuthService.GetUserRoleAsync();
+        isAuthorized = userRole == "Admin";
+        
+        if (isAuthorized)
+        {
+            await LoadUsers();
+        }
+        
+        isLoading = false;
+    }
+
+    private async Task LoadUsers()
+    {
+        isLoadingUsers = true;
+        try
+        {
+            users = await ApiService.GetAllUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading users: {ex.Message}");
+        }
+        finally
+        {
+            isLoadingUsers = false;
+        }
+    }
+
+    private void ShowCreateUserModal()
+    {
+        newUserModel = new UserCreateDto();
+        createUserError = "";
+        showCreateUserModal = true;
+    }
+
+    private void CloseCreateUserModal()
+    {
+        showCreateUserModal = false;
+        newUserModel = new UserCreateDto();
+        createUserError = "";
+    }
+
+    private async Task HandleCreateUser()
+    {
+        isCreatingUser = true;
+        createUserError = "";
+
+        try
+        {
+            // Debug: Log what we're sending to the API
+            Console.WriteLine($"Creating user - Username: {newUserModel.Username}, Role: {newUserModel.Role}");
+            
+            var result = await ApiService.CreateUserAsync(newUserModel);
+            if (result != null)
+            {
+                Console.WriteLine($"User created successfully - ID: {result.Id}, Username: {result.Username}, Role: {result.Role}");
+                await LoadUsers(); // Refresh the user list
+                CloseCreateUserModal();
+            }
+            else
+            {
+                createUserError = "Failed to create user. Username may already exist.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating user: {ex.Message}");
+            createUserError = $"Error creating user: {ex.Message}";
+        }
+        finally
+        {
+            isCreatingUser = false;
+        }
+    }
+
+    private void ViewUser(UserReadDto user)
+    {
+        selectedUser = user;
+        showUserDetailsModal = true;
+    }
+
+    private void CloseUserDetailsModal()
+    {
+        showUserDetailsModal = false;
+        selectedUser = null;
+    }
+
+    private void ConfirmDeleteUser(UserReadDto user)
+    {
+        userToDelete = user;
+        showDeleteConfirmModal = true;
+    }
+
+    private void CloseDeleteConfirmModal()
+    {
+        showDeleteConfirmModal = false;
+        userToDelete = null;
+    }
+
+    private async Task DeleteUser()
+    {
+        if (userToDelete == null) return;
+
+        isDeletingUser = true;
+        try
+        {
+            var success = await ApiService.DeleteUserAsync(userToDelete.Id);
+            if (success)
+            {
+                await LoadUsers(); // Refresh the user list
+                CloseDeleteConfirmModal();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting user: {ex.Message}");
+        }
+        finally
+        {
+            isDeletingUser = false;
+        }
+    }
+
+    private string GetRoleBadgeClass(string role)
+    {
+        return role.ToLower() switch
+        {
+            "admin" => "bg-danger",
+            "user" => "bg-primary",
+            _ => "bg-secondary"
+        };
+    }
+
+    private async Task HandleDeleteUser(int userId)
+    {
+        var userToDelete = users.FirstOrDefault(u => u.Id == userId);
+        if (userToDelete == null) return;
+
+        // Optional: Add a JS confirmation dialog
+        if (await ApiService.DeleteUserAsync(userId))
+        {
+            users.Remove(userToDelete);
+            StateHasChanged();
+        }
+        else
+        {
+            // Handle error
+        }
+    }
+} 

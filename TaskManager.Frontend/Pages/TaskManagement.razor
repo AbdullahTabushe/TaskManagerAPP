@@ -1,0 +1,416 @@
+@page "/tasks/{ProjectId:int}"
+@using TaskManager.Frontend.Models
+@using TaskManager.Frontend.Services
+@using TaskManager.Frontend.Shared
+@inject IAuthService AuthService
+@inject IApiService ApiService
+@inject NavigationManager Navigation
+
+<PageTitle>Task Management</PageTitle>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Tasks</li>
+                </ol>
+            </nav>
+            <h2>Project Tasks</h2>
+        </div>
+        <div>
+            <button class="btn btn-primary" @onclick="ShowCreateTaskModal">
+                <i class="bi bi-plus-circle"></i> New Task
+            </button>
+            <a href="/dashboard" class="btn btn-outline-secondary ms-2">
+                <i class="bi bi-arrow-left"></i> Back to Projects
+            </a>
+        </div>
+    </div>
+
+    <!-- Task Filters -->
+    <div class="row mb-3">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body py-2">
+                    <div class="row align-items-center">
+                        <div class="col-auto">
+                            <strong>Filter by Status:</strong>
+                        </div>
+                        <div class="col">
+                            <select class="form-select form-select-sm" @onchange="OnStatusFilterChanged">
+                                <option value="">All Tasks</option>
+                                <option value="Pending" selected="@(selectedStatus == "Pending")">Pending</option>
+                                <option value="In Progress" selected="@(selectedStatus == "In Progress")">In Progress</option>
+                                <option value="Completed" selected="@(selectedStatus == "Completed")">Completed</option>
+                            </select>
+                        </div>
+                        @if (!string.IsNullOrEmpty(selectedStatus))
+                        {
+                            <div class="col-auto">
+                                <button class="btn btn-sm btn-outline-secondary" @onclick="ClearStatusFilter">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="d-flex justify-content-end align-items-center">
+                <small class="text-muted">
+                    Showing @filteredTasks.Count() of @tasks.Count tasks
+                    @if (!string.IsNullOrEmpty(selectedStatus))
+                    {
+                        <span class="badge bg-primary ms-1">@selectedStatus</span>
+                    }
+                </small>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p>Loading tasks...</p>
+        </div>
+    }
+    else if (filteredTasks.Any())
+    {
+        <div class="row">
+            <div class="col-12">
+                <div class="table-responsive">
+                <TaskList Tasks="filteredTasks.ToList()"
+                          AllowStatusChanges="true"
+                              EmptyMessage="@emptyMessage"
+                              OnTaskUpdated="HandleTaskUpdate" />
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="text-center mt-5">
+            @if (!string.IsNullOrEmpty(selectedStatus))
+            {
+                <h4>No @selectedStatus.ToLower() tasks found</h4>
+                <p class="text-muted">There are no tasks with "@selectedStatus" status in this project.</p>
+                <button class="btn btn-outline-secondary" @onclick="ClearStatusFilter">
+                    <i class="bi bi-funnel"></i> Show All Tasks
+                </button>
+            }
+            else
+            {
+                <h4>No tasks found</h4>
+                <p class="text-muted">Get started by creating your first task for this project!</p>
+            }
+            <button class="btn btn-primary btn-lg ms-2" @onclick="ShowCreateTaskModal">
+                <i class="bi bi-plus-circle"></i> Create Task
+            </button>
+        </div>
+    }
+
+    <!-- Create/Edit Task Modal -->
+    @if (showTaskModal)
+    {
+        <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">@(editingTask != null ? "Edit Task" : "Create New Task")</h5>
+                        <button type="button" class="btn-close" @onclick="CloseTaskModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <EditForm Model="@taskModel" OnValidSubmit="@HandleValidSubmit">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary class="text-danger" />
+
+                            <div class="mb-3">
+                                <label for="taskTitle" class="form-label">Task Title</label>
+                                <InputText @bind-Value="taskModel.Title" class="form-control" id="taskTitle" />
+                                <ValidationMessage For="@(() => taskModel.Title)" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="taskDescription" class="form-label">Description</label>
+                                <InputTextArea @bind-Value="taskModel.Description" class="form-control" id="taskDescription" rows="3" />
+                                <ValidationMessage For="@(() => taskModel.Description)" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="taskDueDate" class="form-label">Due Date</label>
+                                <InputDate @bind-Value="taskModel.DueDate" class="form-control" id="taskDueDate" />
+                                <ValidationMessage For="@(() => taskModel.DueDate)" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="assignedUser" class="form-label">Assign to User</label>
+                                <InputSelect @bind-Value="taskModel.AssignedUserId" class="form-select" id="assignedUser">
+                                    <option value="">Select a user (optional)</option>
+                                    @foreach (var user in availableUsers)
+                                    {
+                                        <option value="@user.Id">@user.Username</option>
+                                    }
+                                </InputSelect>
+                                <div class="form-text">Leave empty if task is not assigned to a specific user.</div>
+                            </div>
+
+                            @if (editingTask != null)
+                            {
+                                <div class="mb-3">
+                                    <label for="taskStatus" class="form-label">Status</label>
+                                    <InputSelect @bind-Value="taskUpdateModel.Status" class="form-select" id="taskStatus">
+                                        <option value="">Keep current status</option>
+                                        <option value="Pending">Pending</option>
+                                        <option value="In Progress">In Progress</option>
+                                        <option value="Completed">Completed</option>
+                                    </InputSelect>
+                                </div>
+                            }
+
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" @onclick="CloseTaskModal">Cancel</button>
+                                <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                                    @if (isSubmitting)
+                                    {
+                                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                        <text> @(editingTask != null ? "Updating..." : "Creating...")</text>
+                                    }
+                                    else
+                                    {
+                                        <text>@(editingTask != null ? "Update" : "Create")</text>
+                                    }
+                                </button>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+
+@code {
+    [Parameter] public int ProjectId { get; set; }
+
+    private bool isLoading = true;
+    private List<TaskReadDto> tasks = new();
+    private bool showTaskModal = false;
+    private bool isSubmitting = false;
+    private TaskCreateDto taskModel = new();
+    private TaskUpdateDto taskUpdateModel = new();
+    private TaskReadDto? editingTask = null;
+    private string selectedStatus = "";
+    private List<UserReadDto> availableUsers = new();
+    private string emptyMessage = "No tasks available.";
+
+    
+    // Computed property for filtered tasks
+    private IEnumerable<TaskReadDto> filteredTasks => 
+        string.IsNullOrEmpty(selectedStatus) 
+            ? tasks 
+            : tasks.Where(t => t.Status == selectedStatus);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var isAuthenticated = await AuthService.IsLoggedInAsync();
+        if (!isAuthenticated)
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        await LoadTasks();
+        await LoadUsers();
+    }
+
+    private async Task LoadTasks()
+    {
+        isLoading = true;
+        try
+        {
+            tasks = await ApiService.GetTasksByProjectAsync(ProjectId);
+        }
+        catch (Exception)
+        {
+            // Handle error
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadUsers()
+    {
+        try
+        {
+            availableUsers = await ApiService.GetAllUsersAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading users: {ex.Message}");
+        }
+    }
+
+    private void ShowCreateTaskModal()
+    {
+        editingTask = null;
+        taskModel = new TaskCreateDto { ProjectId = ProjectId, DueDate = DateTime.Now.AddDays(1) };
+        taskUpdateModel = new TaskUpdateDto();
+        showTaskModal = true;
+    }
+
+    private void EditTask(TaskReadDto task)
+    {
+        editingTask = task;
+        taskModel = new TaskCreateDto
+        {
+            Title = task.Title,
+            Description = task.Description,
+            DueDate = task.DueDate ?? DateTime.Now.AddDays(1),
+            ProjectId = ProjectId,
+            AssignedUserId = task.AssignedUserId
+        };
+        taskUpdateModel = new TaskUpdateDto
+        {
+            Title = task.Title,
+            Description = task.Description,
+            DueDate = task.DueDate,
+            Status = task.Status,
+            AssignedUserId = task.AssignedUserId
+        };
+        showTaskModal = true;
+    }
+
+    private void CloseTaskModal()
+    {
+        showTaskModal = false;
+        editingTask = null;
+        taskModel = new TaskCreateDto();
+        taskUpdateModel = new TaskUpdateDto();
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        isSubmitting = true;
+        if (editingTask == null)
+        {
+            var newTask = await ApiService.CreateTaskAsync(taskModel);
+            if (newTask != null)
+            {
+                tasks.Add(newTask);
+            }
+        }
+        else
+        {
+            if (await ApiService.UpdateTaskAsync(editingTask.Id, new TaskUpdateDto { /* Map from taskModel */ }))
+            {
+                // Update local list
+                var index = tasks.FindIndex(t => t.Id == editingTask.Id);
+                if (index != -1)
+                {
+                    var updatedTask = await ApiService.GetTaskByIdAsync(editingTask.Id);
+                    if(updatedTask != null) tasks[index] = updatedTask;
+                }
+            }
+        }
+        
+        showTaskModal = false;
+        isSubmitting = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task DeleteTask(int taskId)
+    {
+        if (await ApiService.DeleteTaskAsync(taskId))
+        {
+            var taskToRemove = tasks.FirstOrDefault(t => t.Id == taskId);
+            if (taskToRemove != null)
+            {
+                tasks.Remove(taskToRemove);
+                StateHasChanged();
+            }
+        }
+    }
+
+    private string GetStatusBadgeClass(string status)
+    {
+        return status.ToLower() switch
+        {
+            "pending" => "bg-warning",
+            "in progress" => "bg-info",
+            "completed" => "bg-success",
+            _ => "bg-secondary"
+        };
+    }
+
+    /// <summary>
+    /// Gets deadline warning information for visual alerts
+    /// </summary>
+    private (string badgeClass, string icon, string text) GetDeadlineWarning(DateTime dueDate, string status)
+    {
+        // Don't show warnings for completed tasks
+        if (status.ToLower() == "completed")
+            return ("", "", "");
+
+        var now = DateTime.Now;
+        var timeUntilDue = dueDate - now;
+
+        // Overdue tasks
+        if (dueDate < now)
+        {
+            var daysOverdue = (int)Math.Ceiling((now - dueDate).TotalDays);
+            return ("bg-danger", "bi-exclamation-triangle-fill", 
+                   daysOverdue == 1 ? "1 day overdue" : $"{daysOverdue} days overdue");
+        }
+        
+        // Due within 24 hours
+        if (timeUntilDue.TotalHours <= 24)
+        {
+            var hoursLeft = (int)Math.Ceiling(timeUntilDue.TotalHours);
+            return ("bg-warning text-dark", "bi-clock-fill", 
+                   hoursLeft <= 1 ? "Due in <1 hour" : $"Due in {hoursLeft}h");
+        }
+        
+        // Due within 3 days
+        if (timeUntilDue.TotalDays <= 3)
+        {
+            var daysLeft = (int)Math.Ceiling(timeUntilDue.TotalDays);
+            return ("bg-info", "bi-calendar-check", $"Due in {daysLeft} days");
+        }
+
+        // No warning needed
+        return ("", "", "");
+    }
+
+    /// <summary>
+    /// Handles status filter dropdown change
+    /// </summary>
+    private void OnStatusFilterChanged(ChangeEventArgs e)
+    {
+        selectedStatus = e.Value?.ToString() ?? "";
+        StateHasChanged(); // Refresh the UI to show filtered results
+    }
+
+    /// <summary>
+    /// Clears the status filter and shows all tasks
+    /// </summary>
+    private void ClearStatusFilter()
+    {
+        selectedStatus = "";
+        StateHasChanged();
+    }
+
+    private async Task HandleTaskUpdate(TaskReadDto updatedTask)
+    {
+        await LoadTasks();
+        StateHasChanged();
+    }
+} 

@@ -53,9 +53,9 @@ namespace TaskManager.Client.Services
             DecodeJwt(_jwt);
             return true;
         }
-        public async Task<bool> RegisterAsync(string username, string password)
+        public async Task<bool> RegisterAsync(string username, string password, string role)
         {
-            var res = await _http.PostAsJsonAsync("api/v1/auth/register", new { username, password });
+            var res = await _http.PostAsJsonAsync("api/v1/auth/register", new { username, password, role });
             return res.IsSuccessStatusCode;
         }
 

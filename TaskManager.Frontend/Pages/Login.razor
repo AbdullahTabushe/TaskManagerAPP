@@ -1,0 +1,93 @@
+@page "/login"
+@using TaskManager.Frontend.Models
+@using TaskManager.Frontend.Services
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Login</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="text-center">Login</h3>
+                </div>
+                <div class="card-body">
+                    <EditForm Model="@loginModel" OnValidSubmit="@HandleLogin">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="text-danger" />
+
+                        @if (!string.IsNullOrEmpty(errorMessage))
+                        {
+                            <div class="alert alert-danger">@errorMessage</div>
+                        }
+
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <InputText @bind-Value="loginModel.Username" class="form-control" id="username" />
+                            <ValidationMessage For="@(() => loginModel.Username)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <InputText @bind-Value="loginModel.Password" type="password" class="form-control" id="password" />
+                            <ValidationMessage For="@(() => loginModel.Password)" />
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                    <text> Logging in...</text>
+                                }
+                                else
+                                {
+                                    <text>Login</text>
+                                }
+                            </button>
+                        </div>
+
+                        <div class="text-center mt-3">
+                            <p>Don't have an account? <a href="/register">Register here</a></p>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private UserLoginDto loginModel = new();
+    private string errorMessage = "";
+    private bool isLoading = false;
+
+    private async Task HandleLogin()
+    {
+        isLoading = true;
+        errorMessage = "";
+
+        try
+        {
+            var result = await AuthService.LoginAsync(loginModel);
+            if (result != null)
+            {
+                Navigation.NavigateTo("/dashboard");
+            }
+            else
+            {
+                errorMessage = "Login failed. Please check your username and password, or check the browser console for more details.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"An error occurred during login: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+} 

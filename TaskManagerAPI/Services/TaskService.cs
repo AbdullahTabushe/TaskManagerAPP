@@ -27,6 +27,16 @@ namespace TaskManagerAPI.Services
                 return null;
             }
 
+            // Validate assigned user exists if provided
+            if (taskDto.AssignedUserId.HasValue)
+            {
+                var userExists = await _context.Users.AnyAsync(u => u.Id == taskDto.AssignedUserId.Value);
+                if (!userExists)
+                {
+                    return null;
+                }
+            }
+
             var task = new TaskItem
             {
                 Title = taskDto.Title,
@@ -34,7 +44,7 @@ namespace TaskManagerAPI.Services
                 DueDate = taskDto.DueDate,
                 Status = "ToDo",
                 ProjectId = taskDto.ProjectId,
-                UserId = userId
+                UserId = taskDto.AssignedUserId
             };
 
             _context.Tasks.Add(task);
@@ -76,8 +86,61 @@ namespace TaskManagerAPI.Services
                     Status = t.Status,
                     DueDate = t.DueDate,
                     AssignedTo = t.User != null ? t.User.Username : "Unassigned",
+                    AssignedUserId = t.UserId,
                     ProjectName = t.Project.Name
                 }).ToListAsync();
+        }
+
+        public async Task<IEnumerable<TaskReadDto>> GetTasksAssignedToUserAsync(int assignedUserId, QueryParameters queryParameters)
+        {
+            Console.WriteLine($"DEBUG: TaskService.GetTasksAssignedToUserAsync called for userId: {assignedUserId}");
+
+            var query = _context.Tasks
+    .AsNoTracking()
+    .Include(t => t.Project)
+    .Include(t => t.User)
+    .Where(t => t.UserId == assignedUserId);
+
+            if (!string.IsNullOrEmpty(queryParameters.FilterBy) && !string.IsNullOrEmpty(queryParameters.FilterQuery))
+            {
+                query = query.Where($"{queryParameters.FilterBy}.Contains(@0)", queryParameters.FilterQuery);
+            }
+
+            if (!string.IsNullOrEmpty(queryParameters.SortBy))
+            {
+                var sortOrder = queryParameters.IsDescending ? "descending" : "ascending";
+                query = query.OrderBy($"{queryParameters.SortBy} {sortOrder}");
+            }
+            else
+            {
+                query = query.OrderByDescending(t => t.DueDate);
+            }
+
+            query = query
+                .Skip((queryParameters.PageNumber - 1) * queryParameters.PageSize)
+                .Take(queryParameters.PageSize);
+
+
+            var result = await query
+                .Select(t => new TaskReadDto
+                {
+                    Id = t.Id,
+                    Title = t.Title,
+                    Description = t.Description,
+                    Status = t.Status,
+                    DueDate = t.DueDate,
+                    AssignedTo = t.User != null ? t.User.Username : "Unassigned",
+                    AssignedUserId = t.UserId,
+                    ProjectName = t.Project.Name
+                }).ToListAsync();
+                
+            Console.WriteLine($"DEBUG: TaskService found {result.Count()} tasks for user {assignedUserId}");
+            foreach (var task in result)
+            {
+                Console.WriteLine($"DEBUG: Task - ID: {task.Id}, Title: {task.Title}, AssignedUserId: {task.AssignedUserId}");
+            }
+            
+            return result;
         }
 
         public async Task<TaskReadDto?> GetTaskByIdAsync(int taskId, int userId)
@@ -111,6 +174,7 @@ namespace TaskManagerAPI.Services
                 Status = task.Status,
                 DueDate = task.DueDate,
                 AssignedTo = task.User != null ? task.User.Username : "Unassigned",
+                AssignedUserId = task.UserId,
                 ProjectName = task.Project.Name
             };
             
@@ -123,7 +187,7 @@ namespace TaskManagerAPI.Services
         {
             var task = await _context.Tasks
                 .Include(t => t.Project)
-                .FirstOrDefaultAsync(t => t.Id == taskId && t.Project.UserId == userId);
+                .FirstOrDefaultAsync(t => t.Id == taskId && (t.Project.UserId == userId || t.UserId == userId));
 
             if (task == null)
             {
@@ -167,6 +231,29 @@ namespace TaskManagerAPI.Services
             _cache.Remove(cacheKey);
 
             return true;
+        }
+
+        public async Task<object> GetAllTasksForDebugAsync()
+        {
+            var tasks = await _context.Tasks
+                .Include(t => t.Project)
+                .Include(t => t.User)
+                .Select(t => new {
+                    TaskId = t.Id,
+                    Title = t.Title,
+                    Status = t.Status,
+                    UserId = t.UserId,
+                    AssignedToUsername = t.User != null ? t.User.Username : "Unassigned",
+                    ProjectId = t.ProjectId,
+                    ProjectName = t.Project.Name,
+                    ProjectOwnerId = t.Project.UserId
+                })
+                .ToListAsync();
+
+            return new { 
+                TotalTasks = tasks.Count,
+                Tasks = tasks 
+            };
         }
     }
 }

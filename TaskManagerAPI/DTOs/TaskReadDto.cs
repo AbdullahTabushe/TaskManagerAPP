@@ -8,6 +8,7 @@
         public string Status { get; set; } = null!;
         public DateTime DueDate { get; set; }
         public string AssignedTo { get; set; } = null!;
+        public int? AssignedUserId { get; set; }
         public string ProjectName { get; set; } = null!;
     }
 }

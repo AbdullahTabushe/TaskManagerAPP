@@ -1,0 +1,105 @@
+﻿@using TaskManager.Frontend.Services
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/dashboard">Task Manager</a>
+        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </div>
+</div>
+
+<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
+    <nav class="flex-column">
+        @if (isAuthenticated)
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="/dashboard" Match="NavLinkMatch.All">
+                    <span class="bi bi-house-door-fill" aria-hidden="true"></span> Dashboard
+                </NavLink>
+            </div>
+
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="/my-tasks">
+                    <span class="bi bi-list-task" aria-hidden="true"></span> My Tasks
+                </NavLink>
+            </div>
+            
+            @if (userRole == "Admin")
+            {
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="/admin">
+                        <span class="bi bi-shield-fill" aria-hidden="true"></span> Admin Panel
+                    </NavLink>
+                </div>
+            }
+            
+            <div class="nav-item px-3">
+                <button class="nav-link btn btn-link text-start w-100" @onclick="HandleLogout">
+                    <span class="bi bi-box-arrow-right" aria-hidden="true"></span> Logout
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="/login">
+                    <span class="bi bi-box-arrow-in-right" aria-hidden="true"></span> Login
+                </NavLink>
+            </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="/register">
+                    <span class="bi bi-person-plus-fill" aria-hidden="true"></span> Register
+                </NavLink>
+            </div>
+        }
+    </nav>
+</div>
+
+@code {
+    private bool collapseNavMenu = true;
+    private bool isAuthenticated = false;
+    private string userRole = "";
+
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CheckAuthenticationState();
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        await CheckAuthenticationState();
+        StateHasChanged();
+    }
+
+    private async Task CheckAuthenticationState()
+    {
+        isAuthenticated = await AuthService.IsLoggedInAsync();
+        if (isAuthenticated)
+        {
+            userRole = await AuthService.GetUserRoleAsync() ?? "";
+        }
+    }
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthService.LogoutAsync();
+        Navigation.NavigateTo("/login");
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+}

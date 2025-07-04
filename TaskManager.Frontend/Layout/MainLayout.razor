@@ -1,0 +1,54 @@
+﻿@inherits LayoutComponentBase
+@using TaskManager.Frontend.Services
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <div class="top-row px-4">
+            @if (isAuthenticated)
+            {
+                 <span class="text-muted me-auto">Welcome back, <strong>@username</strong>!</span>
+            }
+        </div>
+
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+@code {
+    private bool isAuthenticated;
+    private string username = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CheckAuthenticationState();
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        await CheckAuthenticationState();
+        StateHasChanged();
+    }
+
+    private async Task CheckAuthenticationState()
+    {
+        isAuthenticated = await AuthService.IsLoggedInAsync();
+        username = isAuthenticated
+            ? await AuthService.GetUsernameAsync() ?? "User"
+            : string.Empty;
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+}
